@@ -10,6 +10,7 @@ with DAG (
 ) as dag:
     def print_msg():
         msg = "Hello Kuriy!"
+        print(msg)
 
     task1 = PythonOperator (
         task_id="test_task",

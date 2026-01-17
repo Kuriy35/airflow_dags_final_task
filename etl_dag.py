@@ -81,7 +81,7 @@ with DAG (
               ls -lh /sftp
               hdfs dfs -fs hdfs://{HDFS_HOST} -mkdir -p /data/raw_data
               hdfs dfs -fs hdfs://{HDFS_HOST} -put -f /sftp/data.* /data/raw_data/
-              hdfs dfs -fs hdfs://{HDFS_HOST} -ls -lh /data/raw_data"""],
+              hdfs dfs -fs hdfs://{HDFS_HOST} -ls -h /data/raw_data"""],
         env_vars=[k8s.V1EnvVar(name="HADOOP_LOG_DIR", value=HADOOP_LOG_DIR)],
         is_delete_operator_pod=True,
         get_logs=True

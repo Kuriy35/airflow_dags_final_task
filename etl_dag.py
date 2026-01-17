@@ -96,7 +96,7 @@ with DAG (
         image="kuriy/transform-hdfs-file:latest",
         cmds=["bash", "-lc"],
         arguments=[f"""
-            spark-submit \
+            /opt/bitnami/spark/bin/spark-submit \
             --master {SPARK_MASTER_FULL_URL} \
             --deploy-mode client \
             --conf spark.driver.host=$POD_IP \

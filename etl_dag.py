@@ -1,10 +1,11 @@
 from airflow import DAG
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.providers.sftp.operators.sftp import SFTPOperator
+from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from kubernetes.client import models as k8s
 from datetime import datetime
 import os
+import fnmatch
 
 with DAG (
     dag_id = 'my_test_dag',
@@ -39,12 +40,29 @@ with DAG (
         )
     }
 
-    get_data_from_sftp = SFTPOperator (
+    def download_data_files(remote_dir, local_dir, ssh_conn_id):
+        hook = SFTPHook(ssh_conn_id=ssh_conn_id)
+        all_files = hook.list_directory(remote_dir)
+        
+        matched_files = [f for f in all_files if f.startswith("data.")]
+        if not matched_files:
+            print(f"Жодного файлу 'data.*' не знайдено в {remote_dir}")
+            return
+
+        for file_name in matched_files:
+            remote_path = f"{remote_dir}/{file_name}"
+            local_path = f"{local_dir}/{file_name}"
+            print(f"Loading: {remote_path} -> {local_path}")
+            hook.retrieve_file(remote_path, local_path)
+
+    get_data_from_sftp = PythonOperator (
         task_id="get_data_from_sftp",
-        ssh_conn_id="sftp_server",
-        local_filepath="/sftp/data.*",
-        remote_filepath="/sftp/data.*",
-        operation="get",
+        python_callable=download_data_files,
+        op_kwargs={
+            "remote_dir": "/sftp",
+            "local_dir": "/sftp",
+            "ssh_conn_id": "sftp_server"
+        },
         executor_config=sftp_executor_config
     )
     

@@ -87,8 +87,9 @@ with DAG (
     #     get_logs=True
     # )
 
-    SPARK_MASTER_FULL_URL = Variable.get("SPARK_MASTER_HOST", default_var="spark-master-svc") + \
-        ":" + Variable.get("SPARK_MASTER_PORT", default_var="7077")
+    SPARK_MASTER_HOST = Variable.get("SPARK_MASTER_HOST", default_var="spark-master-svc")
+    SPARK_MASTER_PORT = Variable.get("SPARK_MASTER_PORT", default_var="7077")
+    SPARK_MASTER_URL = f"spark://{SPARK_MASTER_HOST}:{SPARK_MASTER_PORT}"
 
     transform_csv_to_parquet = KubernetesPodOperator(
         task_id="transform_csv_to_parquet",
@@ -97,7 +98,7 @@ with DAG (
         cmds=["bash", "-lc"],
         arguments=[f"""
             /opt/bitnami/spark/bin/spark-submit \
-            --master {SPARK_MASTER_FULL_URL} \
+            --master {SPARK_MASTER_URL} \
             --deploy-mode client \
             --conf spark.driver.host=$POD_IP \
             /opt/bitnami/spark/jobs/spark-hdfs-job.py"""],

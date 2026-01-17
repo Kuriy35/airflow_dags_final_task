@@ -1,10 +1,10 @@
 from airflow import DAG
+from airflow.models import Variable
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from kubernetes.client import models as k8s
 from datetime import datetime
-import os
 import fnmatch
 
 with DAG (
@@ -13,10 +13,10 @@ with DAG (
     schedule=None,                     
     catchup=False
 ) as dag:
-    
+    PVC_NAME = Variable.get("PVC_NAME", default_var="raw-data-from-sftp")
     raw_data_volume = k8s.V1Volume(name="raw-data-from-sftp",
                         persistent_volume_claim=k8s.V1PersistentVolumeClaimVolumeSource(
-                            claim_name=os.getenv("PVC_NAME", "raw-data-from-sftp")))
+                            claim_name=PVC_NAME))
 
     sftp_executor_config = {
         "pod_override": k8s.V1Pod(
@@ -66,8 +66,9 @@ with DAG (
         executor_config=sftp_executor_config
     )
     
-    HDFS_HOST=os.getenv("HDFS_HOST", "hdfs-namenodes") + ":" + os.getenv("HDFS_PORT", "8020")
-    HADOOP_LOG_DIR=os.getenv("HDFS_LOG_DIR", "/data0/logs")
+    HDFS_FULL_URL=Variable.get("HDFS_HOST", default_var="hdfs-namenodes") + \
+        ":" + Variable.get("HDFS_PORT", default_var="8020")
+    HADOOP_LOG_DIR=Variable.get("HDFS_LOG_DIR", default_var="/data0/logs")
     
     load_data_to_hdfs = KubernetesPodOperator(
         task_id="load_data_to_hdfs",
@@ -79,10 +80,37 @@ with DAG (
         arguments=[f"""
               set -eux
               ls -lh /sftp
-              hdfs dfs -fs hdfs://{HDFS_HOST} -mkdir -p /data/raw_data
-              hdfs dfs -fs hdfs://{HDFS_HOST} -put -f /sftp/data.* /data/raw_data/
-              hdfs dfs -fs hdfs://{HDFS_HOST} -ls -h /data/raw_data"""],
+              hdfs dfs -fs hdfs://{HDFS_FULL_URL} -mkdir -p /data/raw_data
+              hdfs dfs -fs hdfs://{HDFS_FULL_URL} -put -f /sftp/data.* /data/raw_data/"""],
         env_vars=[k8s.V1EnvVar(name="HADOOP_LOG_DIR", value=HADOOP_LOG_DIR)],
+        is_delete_operator_pod=True,
+        get_logs=True
+    )
+
+    SPARK_MASTER_FULL_URL = Variable.get("SPARK_MASTER_HOST", default_var="spark-master-svc") + \
+        ":" + Variable.get("SPARK_MASTER_PORT", default_var="7077")
+
+    transform_csv_to_parquet = KubernetesPodOperator(
+        task_id="transform_csv_to_parquet",
+        namespace="data",
+        image="kuriy/transform-hdfs-file:latest",
+        cmds=["bash", "-lc"],
+        arguments=[f"""
+            spark-submit \
+            --master {SPARK_MASTER_FULL_URL} \
+            --deploy-mode client \
+            --conf spark.driver.host=$POD_IP \
+            /opt/bitnami/spark/jobs/spark-hdfs-job.py"""],
+        env_vars=[
+            k8s.V1EnvVar(
+                name="POD_IP",
+                value_from=k8s.V1EnvVarSource(
+                    field_ref=k8s.V1ObjectFieldSelector(field_path="status.podIP")
+                )
+            ),
+            k8s.V1EnvVar(name="HDFS_HOST", value="hdfs-namenodes"),
+            k8s.V1EnvVar(name="HDFS_PORT", value="8020")
+        ],
         is_delete_operator_pod=True,
         get_logs=True
     )

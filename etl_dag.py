@@ -5,7 +5,6 @@ from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from kubernetes.client import models as k8s
 from datetime import datetime
-import fnmatch
 
 with DAG (
     dag_id = 'my_test_dag',
@@ -91,17 +90,43 @@ with DAG (
     SPARK_MASTER_PORT = Variable.get("SPARK_MASTER_PORT", default_var="7077")
     SPARK_MASTER_URL = f"spark://{SPARK_MASTER_HOST}:{SPARK_MASTER_PORT}"
 
-    transform_csv_to_parquet = KubernetesPodOperator(
-        task_id="transform_csv_to_parquet",
+    # transform_csv_to_parquet = KubernetesPodOperator(
+    #     task_id="transform_csv_to_parquet",
+    #     namespace="data",
+    #     image="kuriy/transform-hdfs-file:latest",
+    #     cmds=["bash", "-lc"],
+    #     arguments=[f"""
+    #         /opt/bitnami/spark/bin/spark-submit \
+    #         --master {SPARK_MASTER_URL} \
+    #         --deploy-mode client \
+    #         --conf spark.driver.host=$POD_IP \
+    #         /opt/bitnami/spark/jobs/spark-hdfs-job.py"""],
+    #     env_vars=[
+    #         k8s.V1EnvVar(
+    #             name="POD_IP",
+    #             value_from=k8s.V1EnvVarSource(
+    #                 field_ref=k8s.V1ObjectFieldSelector(field_path="status.podIP")
+    #             )
+    #         ),
+    #         k8s.V1EnvVar(name="HDFS_HOST", value="hdfs-namenodes"),
+    #         k8s.V1EnvVar(name="HDFS_PORT", value="8020")
+    #     ],
+    #     is_delete_operator_pod=True,
+    #     get_logs=True
+    # )
+
+    load_to_postgresql = KubernetesPodOperator(
+        task_id="load_to_postgresql",
         namespace="data",
-        image="kuriy/transform-hdfs-file:latest",
+        image="kuriy/spark-to-postgresql:latest",
         cmds=["bash", "-lc"],
         arguments=[f"""
             /opt/bitnami/spark/bin/spark-submit \
             --master {SPARK_MASTER_URL} \
             --deploy-mode client \
             --conf spark.driver.host=$POD_IP \
-            /opt/bitnami/spark/jobs/spark-hdfs-job.py"""],
+            --packages org.postgresql:postgresql:42.7.3 \
+            /opt/bitnami/spark/jobs/load_to_postgres.py"""],
         env_vars=[
             k8s.V1EnvVar(
                 name="POD_IP",
@@ -110,13 +135,26 @@ with DAG (
                 )
             ),
             k8s.V1EnvVar(name="HDFS_HOST", value="hdfs-namenodes"),
-            k8s.V1EnvVar(name="HDFS_PORT", value="8020")
+            k8s.V1EnvVar(name="HDFS_PORT", value="8020"),
+            k8s.V1EnvVar(name="SOURCE_PATH", value="/data/processed_data"),
+            k8s.V1EnvVar(name="POSTGRESQL_HOST", value="postgresql"),
+            k8s.V1EnvVar(name="POSTGRESQL_PORT", value="5432"),
+            k8s.V1EnvVar(name="POSTGRESQL_USER", value_from=k8s.V1EnvVarSource(
+                secret_key_ref=k8s.V1SecretKeySelector(
+                    name="postgresql-credentials",
+                    key="username"
+                )
+            )),
+            k8s.V1EnvVar(name="POSTGRESQL_PASSWORD", value_from=k8s.V1EnvVarSource(
+                secret_key_ref=k8s.V1SecretKeySelector(
+                    name="postgresql-credentials",
+                    key="password"
+                )
+            ))
         ],
         is_delete_operator_pod=True,
         get_logs=True
     )
 
-    # load_to_postgresql = KubernetesPodOperator
-
-    # get_data_from_sftp >> load_data_to_hdfs >> 
-    transform_csv_to_parquet
+    # get_data_from_sftp >> load_data_to_hdfs >> transform_csv_to_parquet
+    load_to_postgresql

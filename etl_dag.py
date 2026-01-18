@@ -156,5 +156,45 @@ with DAG (
         get_logs=True
     )
 
+    load_to_cassandra = KubernetesPodOperator(
+        task_id="load_to_cassandra",
+        namespace="data",
+        image="kuriy/spark-to-cassandra:latest",
+        cmds=["bash", "-lc"],
+        arguments=[f"""
+            /opt/bitnami/spark/bin/spark-submit \
+            --master {SPARK_MASTER_URL} \
+            --deploy-mode client \
+            --conf spark.driver.host=$POD_IP \
+            --packages com.datastax.spark:spark-cassandra-connector_2.13:3.5.1 \
+            /opt/bitnami/spark/jobs/load_to_cassandra.py"""],
+        env_vars=[
+            k8s.V1EnvVar(
+                name="POD_IP",
+                value_from=k8s.V1EnvVarSource(
+                    field_ref=k8s.V1ObjectFieldSelector(field_path="status.podIP")
+                )
+            ),
+            k8s.V1EnvVar(name="HDFS_HOST", value="hdfs-namenodes"),
+            k8s.V1EnvVar(name="HDFS_PORT", value="8020"),
+            k8s.V1EnvVar(name="SOURCE_PATH", value="/data/processed_data"),
+            k8s.V1EnvVar(name="CASSANDRA_HOST", value="cassandra.data.svc.cluster.local"),
+            k8s.V1EnvVar(name="CASSANDRA_PORT", value="9042"),
+            k8s.V1EnvVar(name="CASSANDRA_USER", value_from=k8s.V1EnvVarSource(
+                secret_key_ref=k8s.V1SecretKeySelector(
+                    name="cassandra-credentials",
+                    key="username"
+                )
+            )),
+            k8s.V1EnvVar(name="CASSANDRA_PASSWORD", value_from=k8s.V1EnvVarSource(
+                secret_key_ref=k8s.V1SecretKeySelector(
+                    name="cassandra-credentials",
+                    key="password"
+                )
+            ))
+        ]
+    )
+
     # get_data_from_sftp >> load_data_to_hdfs >> transform_csv_to_parquet
-    load_to_postgresql
+    # load_to_postgresql
+    load_to_cassandra

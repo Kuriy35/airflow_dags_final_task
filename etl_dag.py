@@ -126,8 +126,8 @@ with DAG (
             --deploy-mode client \
             --conf spark.driver.host=$POD_IP \
             --packages org.postgresql:postgresql:42.7.3 \
-            --conf spark.executor.memory=512M
-            --conf spark.executor.cores=1
+            --conf spark.executor.memory=512M \
+            --conf spark.executor.cores=1 \
             /opt/bitnami/spark/jobs/load_to_postgres.py"""],
         env_vars=[
             k8s.V1EnvVar(
@@ -169,8 +169,8 @@ with DAG (
             --deploy-mode client \
             --conf spark.driver.host=$POD_IP \
             --packages com.datastax.spark:spark-cassandra-connector_2.13:3.5.1 \
-            --conf spark.executor.memory=512M
-            --conf spark.executor.cores=1
+            --conf spark.executor.memory=512M \
+            --conf spark.executor.cores=1 \
             /opt/bitnami/spark/jobs/load_to_cassandra.py"""],
         env_vars=[
             k8s.V1EnvVar(

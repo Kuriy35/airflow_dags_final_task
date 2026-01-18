@@ -115,46 +115,46 @@ with DAG (
     #     get_logs=True
     # )
 
-    load_to_postgresql = KubernetesPodOperator(
-        task_id="load_to_postgresql",
-        namespace="data",
-        image="kuriy/spark-to-postgresql:latest",
-        cmds=["bash", "-lc"],
-        arguments=[f"""
-            /opt/bitnami/spark/bin/spark-submit \
-            --master {SPARK_MASTER_URL} \
-            --deploy-mode client \
-            --conf spark.driver.host=$POD_IP \
-            --packages org.postgresql:postgresql:42.7.3 \
-            /opt/bitnami/spark/jobs/load_to_postgres.py"""],
-        env_vars=[
-            k8s.V1EnvVar(
-                name="POD_IP",
-                value_from=k8s.V1EnvVarSource(
-                    field_ref=k8s.V1ObjectFieldSelector(field_path="status.podIP")
-                )
-            ),
-            k8s.V1EnvVar(name="HDFS_HOST", value="hdfs-namenodes"),
-            k8s.V1EnvVar(name="HDFS_PORT", value="8020"),
-            k8s.V1EnvVar(name="SOURCE_PATH", value="/data/processed_data"),
-            k8s.V1EnvVar(name="POSTGRESQL_HOST", value="postgresql"),
-            k8s.V1EnvVar(name="POSTGRESQL_PORT", value="5432"),
-            k8s.V1EnvVar(name="POSTGRESQL_USER", value_from=k8s.V1EnvVarSource(
-                secret_key_ref=k8s.V1SecretKeySelector(
-                    name="postgresql-credentials",
-                    key="username"
-                )
-            )),
-            k8s.V1EnvVar(name="POSTGRESQL_PASSWORD", value_from=k8s.V1EnvVarSource(
-                secret_key_ref=k8s.V1SecretKeySelector(
-                    name="postgresql-credentials",
-                    key="password"
-                )
-            ))
-        ],
-        is_delete_operator_pod=True,
-        get_logs=True
-    )
+    # load_to_postgresql = KubernetesPodOperator(
+    #     task_id="load_to_postgresql",
+    #     namespace="data",
+    #     image="kuriy/spark-to-postgresql:latest",
+    #     cmds=["bash", "-lc"],
+    #     arguments=[f"""
+    #         /opt/bitnami/spark/bin/spark-submit \
+    #         --master {SPARK_MASTER_URL} \
+    #         --deploy-mode client \
+    #         --conf spark.driver.host=$POD_IP \
+    #         --packages org.postgresql:postgresql:42.7.3 \
+    #         /opt/bitnami/spark/jobs/load_to_postgres.py"""],
+    #     env_vars=[
+    #         k8s.V1EnvVar(
+    #             name="POD_IP",
+    #             value_from=k8s.V1EnvVarSource(
+    #                 field_ref=k8s.V1ObjectFieldSelector(field_path="status.podIP")
+    #             )
+    #         ),
+    #         k8s.V1EnvVar(name="HDFS_HOST", value="hdfs-namenodes"),
+    #         k8s.V1EnvVar(name="HDFS_PORT", value="8020"),
+    #         k8s.V1EnvVar(name="SOURCE_PATH", value="/data/processed_data"),
+    #         k8s.V1EnvVar(name="POSTGRESQL_HOST", value="postgresql"),
+    #         k8s.V1EnvVar(name="POSTGRESQL_PORT", value="5432"),
+    #         k8s.V1EnvVar(name="POSTGRESQL_USER", value_from=k8s.V1EnvVarSource(
+    #             secret_key_ref=k8s.V1SecretKeySelector(
+    #                 name="postgresql-credentials",
+    #                 key="username"
+    #             )
+    #         )),
+    #         k8s.V1EnvVar(name="POSTGRESQL_PASSWORD", value_from=k8s.V1EnvVarSource(
+    #             secret_key_ref=k8s.V1SecretKeySelector(
+    #                 name="postgresql-credentials",
+    #                 key="password"
+    #             )
+    #         ))
+    #     ],
+    #     is_delete_operator_pod=True,
+    #     get_logs=True
+    # )
 
     load_to_cassandra = KubernetesPodOperator(
         task_id="load_to_cassandra",
@@ -192,7 +192,9 @@ with DAG (
                     key="password"
                 )
             ))
-        ]
+        ],
+        is_delete_operator_pod=True,
+        get_logs=True
     )
 
     # get_data_from_sftp >> load_data_to_hdfs >> transform_csv_to_parquet

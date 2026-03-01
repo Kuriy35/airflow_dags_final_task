@@ -80,6 +80,12 @@ with DAG (
             /opt/bitnami/spark/jobs/convert_to_parquet.py
         """],
         env_vars=[
+            k8s.V1EnvVar(
+                name="POD_IP",
+                value_from=k8s.V1EnvVarSource(
+                    field_ref=k8s.V1ObjectFieldSelector(field_path="status.podIP")
+                )
+            ),
             k8s.V1EnvVar(name="HDFS_NAMENODE", value=HDFS_NAMENODE),
             k8s.V1EnvVar(name="SRC_PATH", value="/data/ecommerce/raw_data"),
             k8s.V1EnvVar(name="DST_PATH", value="/data/ecommerce/converted_data")
@@ -105,6 +111,12 @@ with DAG (
             /opt/bitnami/spark/jobs/transform.py
         """],
         env_vars=[
+            k8s.V1EnvVar(
+                name="POD_IP",
+                value_from=k8s.V1EnvVarSource(
+                    field_ref=k8s.V1ObjectFieldSelector(field_path="status.podIP")
+                )
+            ),
             k8s.V1EnvVar(name="HDFS_NAMENODE", value=HDFS_NAMENODE),
             k8s.V1EnvVar(name="SRC_PATH", value="/data/ecommerce/converted_data"),
             k8s.V1EnvVar(name="DB_HOST", value="postgresql"),

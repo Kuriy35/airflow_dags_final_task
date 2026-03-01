@@ -35,7 +35,7 @@ with DAG (
                 )
             ))
         ],
-        is_delete_operator_pod=False,
+        on_finish_action="delete_succeeded_pod",
         get_logs=True
     )
 
@@ -59,7 +59,7 @@ with DAG (
             )),
             k8s.V1EnvVar(name="HDFS_WEB_URL", value=HDFS_WEB_URL)
         ],
-        is_delete_operator_pod=False,
+        on_finish_action="delete_succeeded_pod",
         get_logs=True
     )
 
@@ -84,7 +84,7 @@ with DAG (
             k8s.V1EnvVar(name="SRC_PATH", value="/data/ecommerce/raw_data"),
             k8s.V1EnvVar(name="DST_PATH", value="/data/ecommerce/converted_data")
         ],
-        is_delete_operator_pod=False,
+        on_finish_action="delete_succeeded_pod",
         get_logs=True
     )
 
@@ -122,7 +122,7 @@ with DAG (
                 )
             )),
         ],
-        is_delete_operator_pod=False,
+        on_finish_action="delete_succeeded_pod",
         get_logs=True
     )
 
